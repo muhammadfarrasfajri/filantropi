@@ -1,0 +1,660 @@
+basePath: /
+definitions:
+  model.APIResponse:
+    properties:
+      data:
+        description: Data sukses (opsional)
+      error:
+        description: True/False
+        type: boolean
+      message:
+        description: Pesan untuk user
+        type: string
+      type:
+        description: Jenis error (ValidationError, etc)
+        type: string
+    type: object
+  model.BeneficiaryProfile:
+    properties:
+      agama:
+        type: string
+      alamat:
+        type: string
+      avatar_url:
+        type: string
+      beneficiary_type:
+        type: string
+      bio_description:
+        type: string
+      created_at:
+        type: string
+      full_name:
+        type: string
+      id:
+        type: string
+      jenis_kelamin:
+        type: string
+      nik:
+        type: string
+      npwp:
+        type: string
+      pekerjaan:
+        type: string
+      phone_number:
+        type: string
+      photo_profile:
+        type: string
+      registration_number:
+        type: string
+      tanggal_lahir:
+        type: string
+      tempat_lahir:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+      wallet_address:
+        type: string
+    type: object
+  model.Campaign:
+    properties:
+      category_id:
+        type: integer
+      created_at:
+        type: string
+      current_amount:
+        type: number
+      description:
+        type: string
+      end_date:
+        type: string
+      id:
+        type: string
+      image_banner:
+        type: string
+      slug:
+        type: string
+      status:
+        type: string
+      story:
+        description: Field baru
+        type: string
+      target_amount:
+        type: number
+      title:
+        type: string
+      user_id:
+        type: string
+    type: object
+  model.RefreshTokenReq:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  model.RegisterBeneficiaryReq:
+    properties:
+      profile:
+        $ref: '#/definitions/model.BeneficiaryProfile'
+      user:
+        $ref: '#/definitions/model.User'
+    required:
+    - profile
+    - user
+    type: object
+  model.User:
+    properties:
+      avatar_url:
+        type: string
+      beneficiary_type:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      google_uid:
+        type: string
+      id:
+        type: string
+      id_token:
+        type: string
+      is_verified:
+        type: integer
+      photo_profile:
+        type: string
+      role:
+        type: string
+      wallet_address:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    name: Muhammad Farras Fajri
+    url: https://github.com/muhammadfarrasfajri
+  description: Backend API untuk platform filantropi.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Filantropi API
+  version: "1.0"
+paths:
+  /api/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Autentikasi user menggunakan IdToken dari Google. Jika berhasil,
+        akan mengembalikan Access Token dan Refresh Token.
+      parameters:
+      - description: Google ID Token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.User'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login Berhasil
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.APIResponse'
+            - properties:
+                data:
+                  type: object
+              type: object
+        "400":
+          description: Format data salah
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+        "401":
+          description: Token Google tidak valid
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+      summary: Login with Google
+      tags:
+      - Authentication
+  /api/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Mengeluarkan user dari sesi dengan membatalkan (invalidate) Refresh
+        Token yang dikirim di body.
+      parameters:
+      - description: Kirimkan Refresh Token yang ingin di-logout
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.RefreshTokenReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logout Berhasil
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+        "400":
+          description: Format data salah
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+        "500":
+          description: Gagal memproses logout di server
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Logout User
+      tags:
+      - Authentication
+  /api/auth/refresh-token:
+    post:
+      consumes:
+      - application/json
+      description: Mendapatkan Access Token baru menggunakan Refresh Token yang valid.
+      parameters:
+      - description: Kirimkan Refresh Token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.RefreshTokenReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Token Berhasil Diperbarui
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.APIResponse'
+            - properties:
+                data:
+                  type: object
+              type: object
+        "400":
+          description: Format data salah
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+        "401":
+          description: Refresh Token tidak valid atau expired
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+      summary: Refresh Access Token
+      tags:
+      - Authentication
+  /api/auth/register/beneficiary:
+    post:
+      consumes:
+      - application/json
+      description: Mendaftarkan user sebagai Penerima Manfaat (Beneficiary) dengan
+        data profil lengkap menggunakan Google IdToken.
+      parameters:
+      - description: Data User dan Profil Beneficiary
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.RegisterBeneficiaryReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Berhasil mendaftar sebagai beneficiary
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.APIResponse'
+            - properties:
+                data:
+                  type: object
+              type: object
+        "400":
+          description: Data tidak lengkap atau format salah
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+      summary: Register Beneficiary with Google
+      tags:
+      - Authentication
+  /api/auth/register/donor:
+    post:
+      consumes:
+      - application/json
+      description: Mendaftarkan user baru sebagai donor menggunakan IdToken dari Google
+        Auth.
+      parameters:
+      - description: Kirimkan IdToken dari Google
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.User'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Register Berhasil
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.APIResponse'
+            - properties:
+                data:
+                  type: object
+              type: object
+        "400":
+          description: Data tidak valid atau Token kosong
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+      summary: Register Donor with Google
+      tags:
+      - Authentication
+  /api/campaign:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Membuat penggalangan dana baru. Membutuhkan login sebagai Beneficiary
+        dan upload gambar banner.
+      parameters:
+      - description: Judul Kampanye
+        in: formData
+        name: title
+        required: true
+        type: string
+      - description: Deskripsi Lengkap
+        in: formData
+        name: description
+        required: true
+        type: string
+      - description: Target Dana (Rp)
+        in: formData
+        name: target_amount
+        required: true
+        type: integer
+      - description: Tenggat Waktu (YYYY-MM-DD)
+        in: formData
+        name: deadline
+        required: true
+        type: string
+      - description: ID Kategori
+        in: formData
+        name: campaign_category_id
+        required: true
+        type: integer
+      - description: Gambar Banner Kampanye
+        in: formData
+        name: image_banner
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Kampanye Berhasil Dibuat
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.APIResponse'
+            - properties:
+                data:
+                  type: object
+              type: object
+        "400":
+          description: Input tidak valid
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create New Campaign
+      tags:
+      - Campaign
+  /api/campaign/{id}:
+    put:
+      consumes:
+      - multipart/form-data
+      description: Memperbarui data kampanye (Judul, Deskripsi, Target, atau Banner).
+        Hanya pemilik kampanye yang bisa melakukan update.
+      parameters:
+      - description: ID Kampanye
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Judul Baru
+        in: formData
+        name: title
+        type: string
+      - description: Deskripsi Baru
+        in: formData
+        name: description
+        type: string
+      - description: Target Dana Baru
+        in: formData
+        name: target_amount
+        type: integer
+      - description: Deadline Baru (YYYY-MM-DD)
+        in: formData
+        name: deadline
+        type: string
+      - description: ID Kategori Baru
+        in: formData
+        name: campaign_category_id
+        type: integer
+      - description: File Banner Baru (Opsional)
+        in: formData
+        name: image_banner
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Berhasil memperbarui kampanye
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.APIResponse'
+            - properties:
+                data:
+                  type: object
+              type: object
+        "400":
+          description: Input tidak valid
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+        "403":
+          description: 'Forbidden: Bukan pemilik kampanye'
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Campaign
+      tags:
+      - Campaign
+  /api/campaign/{slug}:
+    get:
+      description: Mengambil detail lengkap satu kampanye berdasarkan Slug (URL unik).
+      parameters:
+      - description: 'Slug Kampanye (contoh: bantu-masjid-al-ikhlas)'
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Detail Kampanye ditemukan
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Campaign'
+              type: object
+        "404":
+          description: Kampanye tidak ditemukan
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+      summary: Get Campaign Detail
+      tags:
+      - Campaign
+  /api/campaign/active:
+    get:
+      description: Mengambil daftar semua kampanye yang berstatus 'active'. Digunakan
+        oleh donatur untuk melihat daftar donasi yang tersedia.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Daftar kampanye aktif
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Campaign'
+                  type: array
+              type: object
+        "500":
+          description: Gagal mengambil data dari database
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+      summary: Get Active Campaigns
+      tags:
+      - Campaign
+  /api/campaign/me:
+    get:
+      description: Mengambil semua daftar kampanye yang dibuat oleh user (Beneficiary)
+        yang sedang login berdasarkan token JWT.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Berhasil mengambil daftar kampanye milik sendiri
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Campaign'
+                  type: array
+              type: object
+        "401":
+          description: 'Unauthorized: Silakan login kembali'
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+        "500":
+          description: Gagal mengambil data dari database
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get My Campaigns
+      tags:
+      - Campaign
+  /api/user/profile/beneficiaries:
+    get:
+      description: 'Mengambil profil lengkap Penerima Manfaat. Field yang dikembalikan
+        dinamis: jika ''individual'' akan muncul NIK & data pribadi, jika ''organization''
+        akan muncul No. Registrasi & NPWP.'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Berhasil mengambil profil (Data berisi gabungan User & Profile)
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.APIResponse'
+            - properties:
+                data:
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+        "404":
+          description: Data tidak ditemukan
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Beneficiary Profile
+      tags:
+      - User
+  /api/user/profile/donors:
+    get:
+      description: Mengambil data profil user yang sedang login (Donor) berdasarkan
+        token JWT yang dikirimkan di header Authorization.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Berhasil mengambil profil user
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.User'
+              type: object
+        "401":
+          description: 'Unauthorized: Token tidak valid atau expired'
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+        "404":
+          description: User tidak ditemukan di database
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get User Profile (Donor)
+      tags:
+      - User
+  /api/user/profile/update-beneficiaries:
+    put:
+      consumes:
+      - multipart/form-data
+      description: Memperbarui data profil Penerima Manfaat. Menggunakan multipart/form-data
+        untuk mendukung upload foto profil.
+      parameters:
+      - description: Nama Lengkap
+        in: formData
+        name: full_name
+        type: string
+      - description: Nomor Telepon
+        in: formData
+        name: phone_number
+        type: string
+      - description: Alamat Lengkap
+        in: formData
+        name: alamat
+        type: string
+      - description: Deskripsi Singkat/Bio
+        in: formData
+        name: bio_description
+        type: string
+      - description: NIK (Jika tipe individu)
+        in: formData
+        name: nik
+        type: string
+      - description: Jenis Kelamin
+        in: formData
+        name: jenis_kelamin
+        type: string
+      - description: Tempat Lahir
+        in: formData
+        name: tempat_lahir
+        type: string
+      - description: Tanggal Lahir
+        in: formData
+        name: tanggal_lahir
+        type: string
+      - description: Pekerjaan
+        in: formData
+        name: pekerjaan
+        type: string
+      - description: Nomor Registrasi (Jika tipe organisasi)
+        in: formData
+        name: registration_number
+        type: string
+      - description: NPWP (Jika tipe organisasi)
+        in: formData
+        name: npwp
+        type: string
+      - description: File Foto Profil (.jpg, .png)
+        in: formData
+        name: photo_profile
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profil berhasil diperbarui
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+        "400":
+          description: Format data salah
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+        "500":
+          description: Gagal memproses data di server
+          schema:
+            $ref: '#/definitions/model.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Beneficiary Profile
+      tags:
+      - User
+securityDefinitions:
+  BearerAuth:
+    description: 'Masukkan token dengan format: "Bearer <your_token>"'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
