@@ -30,7 +30,7 @@ func (r *RefreshTokenRepository) FindRefreshTokenUser(userID string) (*model.Ref
 	token := model.RefreshToken{}
 	err := row.Scan(&token.ID, &token.Token, &token.ExpiresAt)
 	if err == sql.ErrNoRows {
-		return nil, errors.New("refresh token not found")
+		return nil, err
 	}
 	if err != nil {
 		return nil, err
@@ -39,20 +39,14 @@ func (r *RefreshTokenRepository) FindRefreshTokenUser(userID string) (*model.Ref
 	return &token, nil
 }
 
-func (r *RefreshTokenRepository) UpsertRefreshToken(rt model.RefreshToken) error {
+func (r *RefreshTokenRepository) UpsertTokenLogin(rt model.RefreshToken) error {
+	// Pakai ON DUPLICATE KEY UPDATE agar token lama tertimpa token baru
 	sqlQuery := `
-	INSERT INTO refresh_tokens (user_id, token, expires_at) 
-	VALUES (?, ?, ?) 
-	ON DUPLICATE KEY UPDATE
-		token = VALUES(token),
-		expires_at = VALUES(expires_at),
-	`
-	_, err := r.DB.Exec(
-		sqlQuery,
-		rt.UserID,
-		rt.Token,
-		rt.ExpiresAt,
-	)
+        INSERT INTO refresh_tokens (user_id, token, expires_at) 
+        VALUES (?, ?, ?) 
+        ON DUPLICATE KEY UPDATE token = VALUES(token), expires_at = VALUES(expires_at)`
+
+	_, err := r.DB.Exec(sqlQuery, rt.UserID, rt.Token, rt.ExpiresAt)
 	return err
 }
 

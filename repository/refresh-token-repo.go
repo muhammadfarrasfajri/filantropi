@@ -6,6 +6,6 @@ import (
 
 type RefreshTokenRepo interface {
 	FindRefreshTokenUser(userID string) (*model.RefreshToken, error)
-	UpsertRefreshToken(rt model.RefreshToken) error
+	UpsertTokenLogin(rt model.RefreshToken) error
 	DeleteRefreshToken(token string) error
 }

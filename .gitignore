@@ -1,5 +1,6 @@
 firebase-key.json
 public/*
+docs/*
 test.html
 
 .env
