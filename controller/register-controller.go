@@ -67,7 +67,7 @@ func (c RegisterController) RegisterGoogleUser(ctx *gin.Context) {
 		req.PhotoProfile = ""
 	}
 
-	result, err := c.RegisService.RegisterGoogle(req, model.BeneficiaryProfile{})
+	result, err := c.RegisService.RegisterGoogleUser(req)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, model.APIResponse{
 			Error:   true,
@@ -109,7 +109,7 @@ func (c RegisterController) RegisterGoogleBeneficiaries(ctx *gin.Context) {
 		return
 	}
 
-	if req.User.IdToken == "" {
+	if req.IdToken == "" {
 		ctx.JSON(http.StatusBadRequest, model.APIResponse{
 			Error:   true,
 			Message: "Failed to send id token",
@@ -130,12 +130,27 @@ func (c RegisterController) RegisterGoogleBeneficiaries(ctx *gin.Context) {
 			})
 			return
 		}
-		req.Profile.PhotoProfile = pathProfile
+		req.PhotoProfile = pathProfile
 	} else {
-		req.Profile.PhotoProfile = ""
+		req.PhotoProfile = ""
+	}
+	fileKTP, err := ctx.FormFile("url_ktp")
+	if err == nil {
+		pathProfile := "public/uploads/profile/" + fmt.Sprintf("%d_%s", time.Now().Unix(), fileKTP.Filename)
+		if errSave := ctx.SaveUploadedFile(fileKTP, pathProfile); errSave != nil {
+			ctx.JSON(http.StatusInternalServerError, model.APIResponse{
+				Error:   true,
+				Message: "Failed to send profile photo",
+				Type:    "ProfileError",
+			})
+			return
+		}
+		req.UrlKTP = pathProfile
+	} else {
+		req.UrlKTP = ""
 	}
 
-	result, err := c.RegisService.RegisterGoogle(req.User, req.Profile)
+	result, err := c.RegisService.RegisterGoogleBeneficiaries(req)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, model.APIResponse{
 			Error:   true,

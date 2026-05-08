@@ -119,3 +119,42 @@ func (c RefreshTokenController) Logout(ctx *gin.Context) {
 	})
 
 }
+func (c RefreshTokenController) LogoutAdmin(ctx *gin.Context) {
+
+	var req model.RefreshTokenReq
+	err := ctx.ShouldBindJSON(&req)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, model.APIResponse{
+			Error:   true,
+			Message: "Invalid data format",
+			Type:    "ValidationError",
+		})
+		return
+	}
+
+	if req.RefreshToken == "" {
+		ctx.JSON(http.StatusBadRequest, model.APIResponse{
+			Error:   true,
+			Message: "Failed to send id token",
+			Type:    "TokenError",
+		})
+		return
+	}
+
+	err = c.RefreshTokenService.LogoutAdmin(req.RefreshToken)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, model.APIResponse{
+			Error:   true,
+			Message: err.Error(),
+			Type:    "Error Logout",
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, model.APIResponse{
+		Error:   false,
+		Message: "Logout Success",
+		Type:    "Success",
+	})
+
+}

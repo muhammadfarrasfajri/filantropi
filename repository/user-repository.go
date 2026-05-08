@@ -162,27 +162,28 @@ func (r *UserRepository) FindBeneficiaryById(userId string) (*model.User, *model
 		queryProfile = `
             SELECT 
                 full_name, phone_number, COALESCE(alamat, ''), COALESCE(bio_description, ''), 
-                COALESCE(photo_profile, ''), COALESCE(nik, ''), COALESCE(jenis_kelamin, ''), 
-                COALESCE(agama, ''), COALESCE(tempat_lahir, ''), tanggal_lahir, COALESCE(pekerjaan, '')
+                COALESCE(photo_profile, ''), COALESCE(nik, ''), COALESCE(url_ktp, ''), COALESCE(jenis_kelamin, ''), 
+                COALESCE(tempat_lahir, ''), tanggal_lahir, COALESCE(pekerjaan, '')
             FROM beneficiary_profiles 
             WHERE user_id = ?`
 
 		err = r.DB.QueryRow(queryProfile, userId).Scan(
 			&profile.FullName, &profile.PhoneNumber, &profile.Alamat, &profile.BioDescription,
-			&profile.PhotoProfile, &profile.Nik, &profile.JenisKelamin,
-			&profile.Agama, &profile.TempatLahir, &profile.TanggalLahir, &profile.Pekerjaan,
+			&profile.PhotoProfile, &profile.Nik, &profile.UrlKTP, &profile.JenisKelamin, &profile.TempatLahir,
+			&profile.TanggalLahir, &profile.Pekerjaan,
 		)
 	} else {
 		queryProfile = `
             SELECT 
                 full_name, phone_number, COALESCE(alamat, ''), COALESCE(bio_description, ''), 
-                COALESCE(photo_profile, ''), COALESCE(registration_number, ''), COALESCE(npwp, '')
+                COALESCE(photo_profile, ''), COALESCE(nik, ''), COALESCE(pic, ''), COALESCE(url_ktp, ''), 
+				COALESCE(registration_number, ''), COALESCE(npwp, '')
             FROM beneficiary_profiles 
             WHERE user_id = ?`
 
 		err = r.DB.QueryRow(queryProfile, userId).Scan(
 			&profile.FullName, &profile.PhoneNumber, &profile.Alamat, &profile.BioDescription,
-			&profile.PhotoProfile, &profile.RegistrationNumber, &profile.Npwp,
+			&profile.PhotoProfile, &profile.Nik, &profile.PIC, &profile.UrlKTP, &profile.RegistrationNumber, &profile.Npwp,
 		)
 	}
 
@@ -219,13 +220,13 @@ func (r *UserRepository) UpdateProfileBeneficiary(ctx context.Context, userId st
 		query = `
         UPDATE beneficiary_profiles 
         SET full_name = ?, phone_number = ?, alamat = ?, bio_description = ?, 
-            photo_profile = ?, nik = ?, jenis_kelamin = ?, agama = ?, 
-            tempat_lahir = ?, tanggal_lahir = ?, pekerjaan = ?, updated_at = ?
+            photo_profile = ?, nik = ?, url_ktp = ?, jenis_kelamin = ?, tempat_lahir = ?, 
+			tanggal_lahir = ?, pekerjaan = ?, updated_at = ?
         WHERE user_id = ?`
 
 		_, err = tx.ExecContext(ctx, query,
 			profile.FullName, profile.PhoneNumber, profile.Alamat, profile.BioDescription,
-			profile.PhotoProfile, profile.Nik, profile.JenisKelamin, profile.Agama,
+			profile.PhotoProfile, profile.Nik, profile.UrlKTP, profile.JenisKelamin,
 			profile.TempatLahir, profile.TanggalLahir, profile.Pekerjaan, now,
 			userId,
 		)
@@ -233,12 +234,12 @@ func (r *UserRepository) UpdateProfileBeneficiary(ctx context.Context, userId st
 		query = `
         UPDATE beneficiary_profiles 
         SET full_name = ?, phone_number = ?, alamat = ?, bio_description = ?, 
-            photo_profile = ?, registration_number = ?, npwp = ?, updated_at = ?
+            photo_profile = ?, nik = ?, url_ktp = ?, registration_number = ?, npwp = ?, updated_at = ?
         WHERE user_id = ?`
 
 		_, err = tx.ExecContext(ctx, query,
 			profile.FullName, profile.PhoneNumber, profile.Alamat, profile.BioDescription,
-			profile.PhotoProfile, profile.RegistrationNumber, profile.Npwp, now,
+			profile.PhotoProfile, profile.Nik, profile.UrlKTP, profile.RegistrationNumber, profile.Npwp, now,
 			userId,
 		)
 	}
@@ -248,4 +249,13 @@ func (r *UserRepository) UpdateProfileBeneficiary(ctx context.Context, userId st
 	}
 
 	return tx.Commit()
+}
+
+// internal/repository/admin_repository.go
+
+func (r *UserRepository) GetUserEmailByID(userID string) (string, error) {
+	var email string
+	query := `SELECT email FROM users WHERE id = ? AND deleted_at IS NULL`
+	err := r.DB.QueryRow(query, userID).Scan(&email)
+	return email, err
 }

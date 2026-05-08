@@ -68,3 +68,43 @@ func (c LoginController) LoginGoogle(ctx *gin.Context) {
 	})
 
 }
+
+func (c LoginController) LoginGoogleAdmin(ctx *gin.Context) {
+	var req model.AdminLogin
+
+	err := ctx.ShouldBind(&req)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, model.APIResponse{
+			Error:   true,
+			Message: "Invalid data format",
+			Type:    "ValidationError",
+		})
+		return
+	}
+
+	if req.IdToken == "" {
+		ctx.JSON(http.StatusBadRequest, model.APIResponse{
+			Error:   true,
+			Message: "Failed to send id token",
+			Type:    "TokenError",
+		})
+		return
+	}
+
+	result, err := c.LoginService.LoginGoogleAdmin(req.IdToken)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, model.APIResponse{
+			Error:   true,
+			Message: err.Error(),
+			Type:    "LoginError",
+			Data:    nil,
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, model.APIResponse{
+		Error:   false,
+		Message: "Login successful",
+		Type:    "Success",
+		Data:    result,
+	})
+}

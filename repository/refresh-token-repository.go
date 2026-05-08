@@ -50,8 +50,35 @@ func (r *RefreshTokenRepository) UpsertTokenLogin(rt model.RefreshToken) error {
 	return err
 }
 
+func (r *RefreshTokenRepository) UpsertTokenLoginAdmin(rt model.AdminRefreshToken) error {
+	// Pakai ON DUPLICATE KEY UPDATE agar token lama tertimpa token baru
+	sqlQuery := `
+        INSERT INTO admin_refresh_tokens (admin_id, token, expires_at) 
+        VALUES (?, ?, ?) 
+        ON DUPLICATE KEY UPDATE token = VALUES(token), expires_at = VALUES(expires_at)`
+
+	_, err := r.DB.Exec(sqlQuery, rt.AdminID, rt.Token, rt.ExpiresAt)
+	return err
+}
+
 func (r *RefreshTokenRepository) DeleteRefreshToken(token string) error {
 	query := "DELETE FROM refresh_tokens WHERE token = ?"
+
+	result, err := r.DB.Exec(query, token)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return errors.New("refresh token not found")
+	}
+
+	return nil
+}
+
+func (r *RefreshTokenRepository) DeleteRefreshTokenAdmin(token string) error {
+	query := "DELETE FROM admin_refresh_tokens WHERE token = ?"
 
 	result, err := r.DB.Exec(query, token)
 	if err != nil {

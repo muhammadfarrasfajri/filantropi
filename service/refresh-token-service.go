@@ -134,3 +134,25 @@ func (s *RefreshTokenService) Logout(rawRefreshToken string) error {
 	fmt.Printf("[SUCCESS] [%s] User berhasil logout. Token hash: %s...\n", now, tokenHash[:10])
 	return nil
 }
+
+func (s *RefreshTokenService) LogoutAdmin(rawRefreshToken string) error {
+	now := time.Now().Format("2006-01-02 15:04:05")
+
+	// 1. LOG: Awal Proses
+	// Kita log hash-nya saja, jangan raw token-nya demi keamanan
+	fmt.Printf("[AUTH-LOGOUT] [%s] Memulai proses logout...\n", now)
+
+	tokenHash := middleware.HashToken(rawRefreshToken)
+
+	// 2. Proses hapus di Repository
+	err := s.RefreshTokenRepo.DeleteRefreshTokenAdmin(tokenHash)
+	if err != nil {
+		// LOG: Jika gagal hapus di DB
+		fmt.Printf("[ERROR] [%s] Gagal menghapus refresh token saat logout: %v\n", now, err)
+		return errors.New("logout failed")
+	}
+
+	// 3. LOG: Berhasil
+	fmt.Printf("[SUCCESS] [%s] User berhasil logout. Token hash: %s...\n", now, tokenHash[:10])
+	return nil
+}

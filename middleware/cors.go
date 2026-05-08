@@ -9,8 +9,11 @@ import (
 func AttachCORS(r *gin.Engine) {
 	// List domain yang boleh akses API kamu
 	allowedOrigins := map[string]bool{
-		"http://localhost:3000": true,
-		"https://wanama.id":     true, // Ganti dengan domain production nanti
+		"http://localhost:3000":      true,
+		"http://localhost:3001":      true,
+		"https://wanama.id":          true, // Ganti dengan domain production nanti
+		"http://192.168.52.211:3000": true,
+		"http://192.168.52.211:3001": true,
 	}
 
 	r.Use(func(c *gin.Context) {

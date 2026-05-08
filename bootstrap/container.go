@@ -1,6 +1,8 @@
 package bootstrap
 
 import (
+	"os"
+
 	"firebase.google.com/go/auth"
 	"github.com/muhammadfarrasfajri/filantropi/controller"
 	"github.com/muhammadfarrasfajri/filantropi/database"
@@ -17,6 +19,8 @@ type Container struct {
 	JWTManager         *middleware.JWTManager
 	CampaignController *controller.CampaignController
 	DonationController *controller.DonationController
+	AdminController    *controller.AdminController
+	WebHookController  *controller.WebhookController
 }
 
 func InitContainer(userAuth *auth.Client) *Container {
@@ -27,9 +31,10 @@ func InitContainer(userAuth *auth.Client) *Container {
 	userRepo := repository.NewUserRepository(database.DB)
 	campaignRepo := repository.NewCampaignRepository(database.DB)
 	donationRepo := repository.NewDonationRepository(database.DB)
+	adminRepo := repository.NewAdminRepository(database.DB)
 
 	// Initialize middleware
-	jwtManager := middleware.NewJWTManager("79329e633bbbd5652893feea5c27f60faa0ee69688e65e29bf03419889be965adcab16420e07fa88c62ab8d1f7c82804aee66e30d237f6381b002e1ae1109187", "aaa46ab1983939bfaa571d4b6581e2012d0cec9a67ee1cec975f64af716f6850f080d389b12b70b6918e94bf417c7448133cbd129c8c4bf567bdb7f82bbfa3a1")
+	jwtManager := middleware.NewJWTManager(os.Getenv("ACCESS_TOKEN_SECRET"), os.Getenv("REFRESH_TOKEN_SECRET"))
 
 	// Initialize services
 	registerService := service.NewRegistrasiService(registerRepo, refreshRepo, jwtManager, userAuth)
@@ -38,6 +43,7 @@ func InitContainer(userAuth *auth.Client) *Container {
 	userService := service.NewUserService(userRepo, registerRepo)
 	campaignService := service.NewCampaignService(campaignRepo, userRepo)
 	donationService := service.NewDonationService(donationRepo, campaignRepo, userRepo)
+	adminService := service.NewAdminService(adminRepo, campaignRepo, userRepo)
 
 	// Initialize controllers
 	registerController := controller.NewRegisterController(registerService)
@@ -46,6 +52,8 @@ func InitContainer(userAuth *auth.Client) *Container {
 	userController := controller.NewUserController(userService)
 	campaignController := controller.NewCampaignController(campaignService)
 	donationController := controller.NewDonationController(donationService)
+	adminController := controller.NewAdminController(adminService)
+	webhookController := controller.NewWebhookController(donationService)
 
 	return &Container{
 		RegisterController: registerController,
@@ -55,5 +63,7 @@ func InitContainer(userAuth *auth.Client) *Container {
 		JWTManager:         jwtManager,
 		CampaignController: campaignController,
 		DonationController: donationController,
+		AdminController:    adminController,
+		WebHookController:  webhookController,
 	}
 }

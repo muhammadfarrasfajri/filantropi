@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -17,45 +16,6 @@ func NewDonationController(donationController *service.DonationService) *Donatio
 	return &DonationController{
 		DonationService: donationController,
 	}
-}
-
-func (c *DonationController) CreateDonation(ctx *gin.Context) {
-	var input model.DonationInput
-
-	// 1. Validasi Input JSON
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		ctx.JSON(http.StatusBadRequest, model.APIResponse{
-			Error:   true,
-			Message: "Input tidak valid",
-			Type:    "ValidationError",
-		})
-		return
-	}
-
-	// 2. Ambil UserID dari middleware JWT
-	userID := ctx.GetString("user_id")
-
-	// 3. Panggil Service (Di sini proses simpan DB + Verifikasi Alchemy berjalan)
-	donation, err := c.DonationService.CreateDonation(input, userID)
-
-	if err != nil {
-		// Jika errornya karena verifikasi blockchain (misal: hash palsu atau nominal beda)
-		// Kita gunakan 422 (Unprocessable Entity) atau 400
-		ctx.JSON(http.StatusUnprocessableEntity, model.APIResponse{
-			Error:   true,
-			Message: "Verifikasi donasi gagal: " + err.Error(),
-			Type:    "BlockchainVerificationError",
-		})
-		return
-	}
-
-	// 4. Response Berhasil
-	// Sekarang pesannya lebih akurat karena data sudah diverifikasi on-chain
-	ctx.JSON(http.StatusOK, model.APIResponse{
-		Error:   false,
-		Message: "Donasi berhasil diverifikasi dan saldo kampanye telah diperbarui",
-		Data:    donation,
-	})
 }
 
 func (c *DonationController) MyHistory(ctx *gin.Context) {
@@ -79,113 +39,157 @@ func (c *DonationController) MyHistory(ctx *gin.Context) {
 	})
 }
 
-// // GET /api/wallets/:address/history
 // func (c *DonationController) GetWalletHistory(ctx *gin.Context) {
-// 	walletAddr := ctx.Param("address")
+// 	// 1. Ambil User ID dari Token JWT
+// 	walletAddress := ctx.Param("wallet")
 
-// 	// Validasi format wallet (0x + 40 char)
-// 	if !strings.HasPrefix(walletAddr, "0x") || len(walletAddr) != 42 {
-// 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Format wallet address tidak valid"})
-// 		return
-// 	}
-
-// 	history, err := c.DonationService.GetUserDonationHistory(ctx.Request.Context(), walletAddr)
+// 	// 2. Panggil Service
+// 	history, err := c.DonationService.GetWalletHistory(fmt.Sprintf("%v", walletAddress))
 // 	if err != nil {
-// 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		ctx.JSON(http.StatusInternalServerError, model.APIResponse{
+// 			Error:   true,
+// 			Message: err.Error(),
+// 			Type:    "ErrGetHistory",
+// 		})
 // 		return
 // 	}
 
-// 	ctx.JSON(http.StatusOK, gin.H{
-// 		"status": "success",
-// 		"data":   history,
+// 	// 3. Cek jika data kosong
+// 	if len(history) == 0 {
+// 		ctx.JSON(http.StatusOK, model.APIResponse{
+// 			Error:   false,
+// 			Message: "Belum ada riwayat donasi",
+// 			Data:    []interface{}{},
+// 		})
+// 		return
+// 	}
+
+// 	// 4. Kirim respon sukses
+// 	ctx.JSON(http.StatusOK, model.APIResponse{
+// 		Error:   false,
+// 		Message: "Riwayat donasi berhasil diambil",
+// 		Data:    history,
+// 	})
+// }
+// func (c *DonationController) GetCurrentBalance(ctx *gin.Context) {
+// 	// 1. Ambil Wallet Address dari Parameter URL (misal: /api/campaigns/:wallet/balance)
+// 	walletAddress := ctx.Param("wallet")
+
+// 	// 2. Panggil Service
+// 	// ctx.Param sudah mengembalikan string, jadi tidak perlu fmt.Sprintf lagi
+// 	balance, err := c.DonationService.GetCurrentBalance(walletAddress)
+// 	if err != nil {
+// 		ctx.JSON(http.StatusInternalServerError, model.APIResponse{
+// 			Error:   true,
+// 			Message: err.Error(),
+// 			Type:    "ErrGetCurrentBalance",
+// 		})
+// 		return
+// 	}
+
+// 	// 3. Kirim respon sukses
+// 	// Kita tidak perlu mengecek if balance == 0, karena kalau saldonya 0,
+// 	// ya kita kembalikan saja angka 0 ke frontend. Itu data yang valid!
+// 	ctx.JSON(http.StatusOK, model.APIResponse{
+// 		Error:   false,
+// 		Message: "Saldo berhasil diambil",
+// 		Data: gin.H{
+// 			"balance": balance,
+// 		},
 // 	})
 // }
 
-// internal/controller/donation_controller.go
+func (c *DonationController) GetWalletStats(ctx *gin.Context) {
+	// Ambil wallet dari parameter URL, contoh: /api/wallet/0x123.../stats
+	walletParam := ctx.Param("wallet")
 
-func (c *DonationController) GetWalletHistory(ctx *gin.Context) {
-	// 1. Ambil User ID dari Token JWT
-	walletAddress := ctx.Param("wallet")
+	if walletParam == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Wallet address tidak boleh kosong"})
+		return
+	}
 
-	// 2. Panggil Service
-	history, err := c.DonationService.GetWalletHistory(fmt.Sprintf("%v", walletAddress))
+	// Panggil Service
+	result, err := c.DonationService.GetWalletStats(walletParam)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"status":  "error",
-			"message": "Gagal menarik riwayat dari blockchain",
-		})
+		if err.Error() == "wallet tidak ditemukan di database" {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data wallet"})
 		return
 	}
 
-	// 3. Cek jika data kosong
-	if len(history) == 0 {
-		ctx.JSON(http.StatusOK, gin.H{
-			"status":  "success",
-			"message": "Belum ada riwayat donasi",
-			"data":    []interface{}{},
-		})
-		return
-	}
-
-	// 4. Kirim respon sukses
+	// Kembalikan Response Sukses
 	ctx.JSON(http.StatusOK, gin.H{
-		"status":  "success",
-		"message": "Riwayat donasi berhasil diambil",
-		"data":    history,
+		"message": "Sukses mengambil data wallet",
+		"data":    result,
 	})
 }
 
-// internal/controller/donation_controller.go
+func (c *DonationController) GetDonaturHistory(ctx *gin.Context) {
+	// Ambil dompet donatur dari URL (misal: /api/donatur/0x123.../history)
+	donaturWallet := ctx.Param("wallet")
 
-// func (c *DonationController) HandleAlchemyWebhook(ctx *gin.Context) {
-// 	var payload model.AlchemyWebhookPayload
+	if donaturWallet == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Wallet donatur tidak boleh kosong"})
+		return
+	}
 
-// 	// 1. Tangkap JSON dari Alchemy
-// 	if err := ctx.ShouldBindJSON(&payload); err != nil {
-// 		fmt.Printf("[WEBHOOK ERROR] Gagal baca JSON: %v\n", err)
-// 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Format JSON tidak valid"})
-// 		return
-// 	}
+	histories, err := c.DonationService.GetDonaturHistory(donaturWallet)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
-// 	// 2. Looping aktivitas transaksi (karena 1 hash bisa punya beberapa transfer)
-// 	for _, activity := range payload.Event.Activity {
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Sukses mengambil riwayat donasi pengguna",
+		"data":    histories,
+	})
+}
 
-// 		// Pastikan ini adalah transfer token (erc20)
-// 		if activity.Category == "erc20" {
+func (c *DonationController) GetTotalCollectedByCampaign(ctx *gin.Context) {
+	// Ambil parameter wallet kampanye dari URL
+	campaignWallet := ctx.Param("wallet")
 
-// 			// 3. LOGIKA SORTIR: Cek apakah dompet penerima (ToAddress) ada di DB Kampanye kita
-// 			campaign, err := c.DonationService.GetCampaignByWallet(activity.ToAddress)
+	if campaignWallet == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Wallet kampanye tidak boleh kosong"})
+		return
+	}
 
-// 			if err == nil && campaign.ID != "" {
-// 				// MATCH! Ini adalah donasi untuk sistem WANAMA
-// 				fmt.Printf("\n[🚨 DONASI MASUK!] %f Token dari %s ke Kampanye: %s\n",
-// 					activity.Value, activity.FromAddress, campaign.Title)
+	total, err := c.DonationService.GetTotalCollectedByCampaign(campaignWallet)
+	if err != nil {
+		// Tangani jika dompet kampanye tidak ada di database
+		if err.Error() == "sql: no rows in result set" {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Wallet kampanye tidak ditemukan"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil total donasi kampanye"})
+		return
+	}
 
-// 				// 4. Siapkan data untuk disimpan ke DB
-// 				txData := model.TransactionData{
-// 					TxHash: activity.Hash,
-// 					Date:   time.Now().Format(time.RFC3339), // Waktu saat ini
-// 					Type:   "Masuk",
-// 					Amount: fmt.Sprintf("%.2f", activity.Value),
-// 					FromTo: activity.FromAddress,
-// 				}
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Sukses mengambil total dana terkumpul",
+		"data": map[string]interface{}{
+			"campaign_wallet": campaignWallet,
+			"total_amount":    total,
+		},
+	})
+}
 
-// 				// 5. Simpan ke database menggunakan fungsi yang sudah kita buat sebelumnya
-// 				errSave := c.DonationService.SaveDonation(txData, activity.ToAddress)
-// 				if errSave != nil {
-// 					fmt.Printf("[WEBHOOK ERROR] Gagal simpan ke DB: %v\n", errSave)
-// 				} else {
-// 					fmt.Printf("[WEBHOOK SUCCESS] Donasi berhasil dicatat di DB lokal!\n")
-// 				}
-
-// 			} else {
-// 				// BUKAN KAMPANYE KITA. Abaikan saja.
-// 				// (Ini berarti ada user di luar sana yang transfer Filantropy ke dompet pribadi temannya)
-// 				fmt.Printf("[WEBHOOK IGNORE] Transfer terdeteksi, tapi bukan ke dompet kampanye.\n")
-// 			}
-// 		}
-// 	}
-
-// 	// 6. WAJIB: Selalu kembalikan 200 OK agar Alchemy tahu kita sudah menerimanya
-// 	ctx.Status(http.StatusOK)
-// }
+func (c DonationController) DeleteWallet(ctx *gin.Context) {
+	wallet := ctx.Param("wallet")
+	err := c.DonationService.DeleteWalletAlchemy(wallet)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, model.APIResponse{
+			Error:   true,
+			Message: err.Error(),
+			Type:    "PostWalletError",
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, model.APIResponse{
+		Error:   false,
+		Message: "Wallet deleted successfully",
+		Type:    "DeleteWallet",
+	})
+}

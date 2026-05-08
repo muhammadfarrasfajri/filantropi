@@ -31,8 +31,8 @@ func (r *RegisterRepository) CreateUser(user model.User, refresh model.RefreshTo
 	defer tx.Rollback()
 
 	// 3. Insert User
-	queryUser := "INSERT INTO users (id, email, google_uid, wallet_address, role) VALUES (?, ?, ?, ?, ?)"
-	_, err = tx.Exec(queryUser, userID, user.Email, user.GoogleUID, user.WalletAddress, user.Role)
+	queryUser := "INSERT INTO users (id, email, google_uid, wallet_address, role, is_verified) VALUES (?, ?, ?, ?, ?, ?)"
+	_, err = tx.Exec(queryUser, userID, user.Email, user.GoogleUID, user.WalletAddress, user.Role, user.Isverified)
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func (r *RegisterRepository) CreateUser(user model.User, refresh model.RefreshTo
 
 	return nil
 }
-func (r *RegisterRepository) CreateBeneficiary(user model.User, profiles model.BeneficiaryProfile, refresh model.RefreshToken) error {
+func (r *RegisterRepository) CreateBeneficiary(user model.RegisterBeneficiaryReq, refresh model.RefreshToken) error {
 	userID := user.ID
 	if userID == "" {
 		userID = uuid.New().String()
@@ -96,26 +96,26 @@ func (r *RegisterRepository) CreateBeneficiary(user model.User, profiles model.B
 			INSERT INTO beneficiary_profiles (
 				id, user_id, beneficiary_type, full_name, phone_number, 
 				alamat, bio_description, photo_profile, avatar_url, 
-				nik, jenis_kelamin, agama, tempat_lahir, tanggal_lahir, pekerjaan
+				nik, url_ktp, jenis_kelamin, tempat_lahir, tanggal_lahir, pekerjaan
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 		_, err = tx.Exec(queryProfileIndividual,
-			beneficiaryID, userID, beneficiaryType, user.Name, profiles.PhoneNumber,
-			profiles.Alamat, profiles.BioDescription, profiles.PhotoProfile, user.AvatarUrl,
-			profiles.Nik, profiles.JenisKelamin, profiles.Agama, profiles.TempatLahir, profiles.TanggalLahir, profiles.Pekerjaan,
+			beneficiaryID, userID, beneficiaryType, user.FullName, user.PhoneNumber,
+			user.Alamat, user.BioDescription, user.PhotoProfile, user.AvatarUrl,
+			user.Nik, user.UrlKTP, user.JenisKelamin, user.TempatLahir, user.TanggalLahir, user.Pekerjaan,
 		)
 	} else {
 		queryProfileOrganization := `
 			INSERT INTO beneficiary_profiles (
 				id, user_id, beneficiary_type, full_name, phone_number, 
-				alamat, bio_description, photo_profile, avatar_url, 
-				registration_number, npwp
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+				alamat, bio_description, photo_profile, avatar_url, pic, nik,
+				url_ktp, registration_number, npwp
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 		_, err = tx.Exec(queryProfileOrganization,
-			beneficiaryID, userID, beneficiaryType, user.Name, profiles.PhoneNumber,
-			profiles.Alamat, profiles.BioDescription, profiles.PhotoProfile, user.AvatarUrl,
-			profiles.RegistrationNumber, profiles.Npwp,
+			beneficiaryID, userID, beneficiaryType, user.FullName, user.PhoneNumber,
+			user.Alamat, user.BioDescription, user.PhotoProfile, user.AvatarUrl, user.PIC,
+			user.Nik, user.UrlKTP, user.RegistrationNumber, user.Npwp,
 		)
 	}
 

@@ -8,8 +8,15 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-func SetupRouter(r *gin.Engine, registerController *controller.RegisterController, loginController *controller.LoginController, refreshTokenController *controller.RefreshTokenController, userController *controller.UserController, jwtManager *middleware.JWTManager, campaignController *controller.CampaignController, donationController *controller.DonationController) {
+func SetupRouter(r *gin.Engine, registerController *controller.RegisterController, loginController *controller.LoginController, refreshTokenController *controller.RefreshTokenController, userController *controller.UserController, jwtManager *middleware.JWTManager, campaignController *controller.CampaignController, donationController *controller.DonationController, adminController *controller.AdminController, webhookController *controller.WebhookController) {
 
+	r.POST("/api/wallet/:wallet", userController.PostWallet)
+	r.POST("/api/delete/:wallet", donationController.DeleteWallet)
+	// r.GET("/api/wallet/:wallet", donationController.GetWalletStats)
+	// r.GET("/api/donatur/:wallet", donationController.GetDonaturHistory)
+	// r.GET("/api/campaign/:wallet/", donationController.GetTotalCollectedByCampaign)
+	// routes.go
+	r.POST("/api/webhooks/alchemy", webhookController.HandleAlchemyWebhook)
 	// Swagger documentation
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
@@ -49,7 +56,11 @@ func SetupRouter(r *gin.Engine, registerController *controller.RegisterControlle
 			privateCampaign.POST("", campaignController.CreateCampaign)
 			privateCampaign.GET("/me", campaignController.GetMyCampaigns)
 			privateCampaign.PUT("/:slug", campaignController.UpdateCampaign)
-			privateCampaign.PATCH("/admin/approve/:id", campaignController.ApproveCampaign)
+			privateCampaign.POST("/disbursements/:id", campaignController.RequestDisbursement)
+			privateCampaign.POST("/report/:id", campaignController.SubmitReport)
+			privateCampaign.GET("/milestone-status/:id", campaignController.GetMilestoneStatus)
+			privateCampaign.GET("/stepper/:id", campaignController.GetCampaignStepper)
+
 		}
 	}
 
@@ -58,9 +69,37 @@ func SetupRouter(r *gin.Engine, registerController *controller.RegisterControlle
 		privateDonation := donations.Group("/")
 		privateDonation.Use(jwtManager.AuthMiddleware())
 		{
-			privateDonation.POST("", donationController.CreateDonation)
 			privateDonation.GET("/history", donationController.MyHistory)
-			privateDonation.GET("/wallets/history/:wallet", donationController.GetWalletHistory)
+			// privateDonation.GET("/wallets/history/:wallet", donationController.GetWalletHistory)
+			// privateDonation.GET("/wallet/balance/:wallet", donationController.GetCurrentBalance)
+			privateDonation.GET("/amount/:wallet", donationController.GetTotalCollectedByCampaign)
+			privateDonation.GET("/out/:wallet", donationController.GetDonaturHistory)
+			privateDonation.GET("/in/:wallet", donationController.GetWalletStats)
+		}
+	}
+
+	admins := r.Group("/api/admin/")
+	{
+		admins.POST("auth/login", loginController.LoginGoogleAdmin)
+		privateAdmin := admins.Group("/")
+		privateAdmin.Use(jwtManager.AuthMiddleware())
+		privateAdmin.Use(middleware.AdminMiddleware())
+		{
+			privateAdmin.POST("auth/logout", refreshTokenController.LogoutAdmin)
+			privateAdmin.GET("campaigns", adminController.GetAllCampaign)
+			privateAdmin.GET("campaigns/:slug", campaignController.GetCampaignDetail)
+			privateAdmin.PATCH("campaigns/:slug", adminController.ApproveCampaign)
+			privateAdmin.GET("users", adminController.GetAllUsersForAdmin)
+			privateAdmin.GET("users/:id", adminController.GetUserDetailForAdmin)
+			privateAdmin.GET("dashboard", adminController.GetDashboardSummary)
+			privateAdmin.PATCH("verified/:id", adminController.VerifyUser)
+			privateAdmin.PATCH("campaigns/reject/:slug", adminController.RejectedCampaign)
+			privateAdmin.PATCH("disbursements/approve/:id", adminController.ApproveDisbursement)
+			privateAdmin.GET("disbursements/pending", campaignController.GetPendingDisbursements)
+			privateAdmin.GET("reports/pending", campaignController.GetPendingReports)
+			privateAdmin.PATCH("reports/approve/:id", campaignController.ApproveReport)
+			privateAdmin.PATCH("reports/reject/:id", campaignController.RejectReport)
+			privateAdmin.PATCH("update/wallet/:id", campaignController.UpdateWalletAddress)
 		}
 	}
 }

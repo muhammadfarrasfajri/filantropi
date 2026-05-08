@@ -109,19 +109,21 @@ func (c UserController) FindBeneficiaryById(ctx *gin.Context) {
 		"alamat":           profile.Alamat,
 		"bio_description":  profile.BioDescription,
 		"photo_profile":    profile.PhotoProfile,
+		"nik":              profile.Nik,
+		"url_ktp":          profile.UrlKTP,
 	}
 
 	// 2. Tambahkan field spesifik secara dinamis
 	if user.BeneficiaryType == "individual" {
-		combinedData["nik"] = profile.Nik
 		combinedData["jenis_kelamin"] = profile.JenisKelamin
-		combinedData["agama"] = profile.Agama
 		combinedData["tempat_lahir"] = profile.TempatLahir
 		combinedData["tanggal_lahir"] = profile.TanggalLahir
 		combinedData["pekerjaan"] = profile.Pekerjaan
+
 	} else if user.BeneficiaryType == "organization" {
 		combinedData["registration_number"] = profile.RegistrationNumber
 		combinedData["npwp"] = profile.Npwp
+		combinedData["pic"] = profile.PIC
 	}
 
 	// 3. Response hanya akan berisi field yang relevan
@@ -266,6 +268,23 @@ func (c UserController) UpdateProfileBeneficiaries(ctx *gin.Context) {
 		req.PhotoProfile = pathProfile
 	}
 
+	fileKTP, err := ctx.FormFile("url_ktp")
+	if err == nil {
+		// Ada file yang diupload, proses simpan!
+		pathKTP := "public/uploads/profile/" + fmt.Sprintf("%d_%s", time.Now().Unix(), fileKTP.Filename)
+
+		if errSave := ctx.SaveUploadedFile(fileKTP, pathKTP); errSave != nil {
+			ctx.JSON(http.StatusInternalServerError, model.APIResponse{
+				Error:   true,
+				Message: "failed save KTP",
+				Type:    "KTPError",
+			})
+			return
+		}
+		// Timpa nilai PhotoProfile dengan path file yang baru
+		req.UrlKTP = pathKTP
+	}
+
 	// 3. Eksekusi Service
 	err = c.UserService.UpdateProfileBeneficiaries(context.Background(), userID, req)
 	if err != nil {
@@ -281,5 +300,23 @@ func (c UserController) UpdateProfileBeneficiaries(ctx *gin.Context) {
 		Error:   false,
 		Message: "Update data user success",
 		Type:    "UpdateUser",
+	})
+}
+
+func (c UserController) PostWallet(ctx *gin.Context) {
+	wallet := ctx.Param("wallet")
+	err := c.UserService.PostWallet(wallet)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, model.APIResponse{
+			Error:   true,
+			Message: err.Error(),
+			Type:    "PostWalletError",
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, model.APIResponse{
+		Error:   false,
+		Message: "Wallet added successfully",
+		Type:    "PostWallet",
 	})
 }

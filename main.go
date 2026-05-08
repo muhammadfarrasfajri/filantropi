@@ -1,7 +1,10 @@
 package main
 
 import (
+	"log"
+
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"github.com/muhammadfarrasfajri/filantropi/bootstrap"
 	_ "github.com/muhammadfarrasfajri/filantropi/docs" // Dokumentasi Swagger
 	"github.com/muhammadfarrasfajri/filantropi/middleware"
@@ -27,6 +30,12 @@ import (
 // @name                       Authorization
 // @description                Masukkan token dengan format: "Bearer <your_token>"
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		// Log fatal akan menghentikan aplikasi jika file .env tidak ditemukan
+		// Ini best practice agar aplikasi tidak berjalan dengan konfigurasi yang kosong/salah
+		log.Fatal("Error loading .env file")
+	}
 	// 1. Inisialisasi Database
 	bootstrap.InitDatabase()
 
@@ -59,6 +68,8 @@ func main() {
 		container.JWTManager,
 		container.CampaignController,
 		container.DonationController,
+		container.AdminController,
+		container.WebHookController,
 	)
 
 	// 8. Jalankan Server
