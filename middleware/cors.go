@@ -9,14 +9,14 @@ import (
 func AttachCORS(r *gin.Engine) {
 	// List domain yang boleh akses API kamu
 	allowedOrigins := map[string]bool{
-		"http://localhost:3000":      true,
-		"http://localhost:3001":      true,
-		"http://192.168.52.211:3000": true,
-		"http://192.168.52.211:3001": true,
-		"https://filantropi.net":     true,
-		"https://filantropi.net:443": true,
-		"https://filmin.net":         true,
-		"https://filmin.net:8443":    true,
+		"http://localhost:3000":             true,
+		"http://localhost:3001":             true,
+		"http://192.168.52.211:3000":        true,
+		"http://192.168.52.211:3001":        true,
+		"https://filantropi.net":            true,
+		"https://filantropi.net:443":        true,
+		"https://fimin.filantropi.net":      true,
+		"https://fimin.filantropi.net:8443": true,
 	}
 
 	r.Use(func(c *gin.Context) {
